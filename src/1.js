@@ -266,6 +266,7 @@ const Data = {
     },
     add_vertices: function () {
         this.verticesCtr = new Float32Array(this.pointsCtr.length * this.countAttribData);
+        
         for (let i = 0; i < this.pointsCtr.length; i++) {
             this.verticesCtr[i * this.countAttribData] = this.pointsCtr[i].x;
             this.verticesCtr[i * this.countAttribData + 1] = this.pointsCtr[i].y;
@@ -355,10 +356,13 @@ const Data = {
     calculateLineSpline: function () {
         let i, j;
         let pt;
-        let t, x, y, dt, omega;
+        let t, x, y, dt;
 		let d = 0;
 		let d1 = 0;
 
+        this.pointsCtr[this.pointsCtr.length-1].t = this.pointsCtr[0].t
+        this.pointsCtr[this.pointsCtr.length-1].x = this.pointsCtr[0].x
+        this.pointsCtr[this.pointsCtr.length-1].y = this.pointsCtr[0].y
 		for (i = 1; i < this.pointsCtr.length; i++){
 			d += Math.hypot(this.pointsCtr[i].x - this.pointsCtr[i-1].x,this.pointsCtr[i].y - this.pointsCtr[i-1].y);
 			d1 += (Math.sqrt(Math.hypot(this.pointsCtr[i].x - this.pointsCtr[i-1].x,this.pointsCtr[i].y - this.pointsCtr[i-1].y)));
@@ -381,31 +385,118 @@ const Data = {
         const N = this.countSplinePoints.value;
         this.pointsSpline = new Array(N);
 		dt = (this.pointsCtr[this.pointsCtr.length-1].t - this.pointsCtr[0].t)/(N-1);
-		
 		i = 0;
 		t = 0;
 		
 
+        let h = [];
+        let dp0 = new Point();
+        dp0.x = (this.pointsCtr[1].x - this.pointsCtr[0].x) / (this.pointsCtr[1].t - this.pointsCtr[0].t)
+        dp0.y = (this.pointsCtr[1].y - this.pointsCtr[0].y) / (this.pointsCtr[1].t - this.pointsCtr[0].t)
+        let dp1 = new Point();
+        dp1.x = (this.pointsCtr[2].x - this.pointsCtr[1].x) / (this.pointsCtr[2].t - this.pointsCtr[1].t)
+        dp1.y = (this.pointsCtr[2].y - this.pointsCtr[1].y) / (this.pointsCtr[2].t - this.pointsCtr[1].t)   
+        let ddp0 = new Point();
+        ddp0.x = (dp1.x - dp0.x) / (this.pointsCtr[1].t - this.pointsCtr[0].t)
+        ddp0.y = (dp1.y - dp0.y) / (this.pointsCtr[1].t - this.pointsCtr[0].t)  
+
+        let dpn = new Point();
+        dpn.x = (this.pointsCtr[this.pointsCtr.length-1].x - this.pointsCtr[this.pointsCtr.length-2].x) 
+        / (this.pointsCtr[this.pointsCtr.length-1].t - this.pointsCtr[this.pointsCtr.length-2].t)
+        dpn.y = (this.pointsCtr[this.pointsCtr.length-1].y - this.pointsCtr[this.pointsCtr.length-2].y) 
+        / (this.pointsCtr[this.pointsCtr.length-1].t - this.pointsCtr[this.pointsCtr.length-2].t)
+        let dpn_1 = new Point();
+        dpn_1.x = (this.pointsCtr[this.pointsCtr.length-2].x - this.pointsCtr[this.pointsCtr.length-3].x) 
+        / (this.pointsCtr[this.pointsCtr.length-2].t - this.pointsCtr[this.pointsCtr.length-3].t)
+        dpn_1.y = (this.pointsCtr[this.pointsCtr.length-2].y - this.pointsCtr[this.pointsCtr.length-3].y) 
+        / (this.pointsCtr[this.pointsCtr.length-2].t - this.pointsCtr[this.pointsCtr.length-3].t)   
+        let ddpn = new Point();
+        ddpn.x = (dpn.x - dpn_1.x) / (this.pointsCtr[this.pointsCtr.length-1].t - this.pointsCtr[this.pointsCtr.length-2].t)
+        ddpn.y = (dpn.y - dpn_1.y) / (this.pointsCtr[this.pointsCtr.length-1].t - this.pointsCtr[this.pointsCtr.length-2].t)  
+
+        let a_x = [0];
+        let b_x = [1];
+        let c_x = [0];
+        let d_x = [ddp0.x]
+        let d_y = [ddp0.y]
+        a_x[this.pointsCtr.length-1] = 0;
+        b_x[this.pointsCtr.length-1] = 1;
+        c_x[this.pointsCtr.length-1] = 0;
+        d_x[this.pointsCtr.length-1] = ddpn.x
+        d_y[this.pointsCtr.length-1] = ddpn.y
+
+        let a_y = [0];
+        let b_y = [1];
+        let c_y = [0];
+        a_y[this.pointsCtr.length-1] = 0;
+        b_y[this.pointsCtr.length-1] = 1;
+        c_y[this.pointsCtr.length-1] = 0;
+
+        for (j = 1; j < this.pointsCtr.length-1; j++) {
+            console.log(j)
+            c_x[j] = this.pointsCtr[j].t - this.pointsCtr[j-1].t
+            a_x[j] = this.pointsCtr[j+1].t - this.pointsCtr[j].t
+            b_x[j] = 2*(a_x[j] + c_x[j])
+            d_x[j] = 6 * ((this.pointsCtr[j+1].x - this.pointsCtr[j].x) / (this.pointsCtr[j+1].t - this.pointsCtr[j].t) - 
+                (this.pointsCtr[j].x - this.pointsCtr[j-1].x) / (this.pointsCtr[j].t - this.pointsCtr[j-1].t))
+        }
+
+        for (j = 1; j < this.pointsCtr.length-1; j++) {
+            console.log(j)
+            c_y[j] = this.pointsCtr[j].t - this.pointsCtr[j-1].t
+            a_y[j] = this.pointsCtr[j+1].t - this.pointsCtr[j].t
+            b_y[j] = 2*(a_y[j] + c_y[j])
+            d_y[j] = 6 * ((this.pointsCtr[j+1].y - this.pointsCtr[j].y) / (this.pointsCtr[j+1].t - this.pointsCtr[j].t) - 
+                (this.pointsCtr[j].y - this.pointsCtr[j-1].y) / (this.pointsCtr[j].t - this.pointsCtr[j-1].t))
+        }
+
+        for (j = 1; j < this.pointsCtr.length; j++) {
+            console.log(j)
+            c_x[j] = c_x[j] / (b_x[j] - c_x[j-1]*a_x[j])
+            d_x[j] = (d_x[j] - d_x[j-1]*a_x[j]) / (b_x[j] - c_x[j-1]*a_x[j])
+        }     
+
+        for (j = 1; j < this.pointsCtr.length; j++) {
+            console.log(j)
+            c_y[j] = c_y[j] / (b_y[j] - c_y[j-1]*a_y[j])
+            d_y[j] = (d_y[j] - d_y[j-1]*a_y[j]) / (b_y[j] - c_y[j-1]*a_y[j])
+        }  
+          
+        console.log(a_x, d_x)
+  
+        let M_x = []
+        let M_y = []
+        M_x[this.pointsCtr.length - 1] = d_x[this.pointsCtr.length - 1];
+        M_y[this.pointsCtr.length - 1] = d_y[this.pointsCtr.length - 1]; 
+
+        for (j = this.pointsCtr.length - 2; j >= 0; j--) {
+           M_x[j] = d_x[j] - c_x[j] *  M_x[j+1]
+        }    
+
+        for (j = this.pointsCtr.length - 2; j >= 0; j--) {
+           M_y[j] = d_y[j] - c_y[j] *  M_y[j+1]
+        }    
+
 		for (j = 0; j < N; j++) {
-			omega = (t - this.pointsCtr[i].t)/(this.pointsCtr[i+1].t - this.pointsCtr[i].t)
-			
-			x = this.pointsCtr[i].x * (1 - omega) + this.pointsCtr[i+1].x * omega;
-			y = this.pointsCtr[i].y * (1 - omega) + this.pointsCtr[i+1].y * omega;
+			h = this.pointsCtr[i+1].t - this.pointsCtr[i].t
+	        x = M_x[i] * Math.pow((this.pointsCtr[i+1].t - t), 3) / (6*h) + M_x[i+1] * Math.pow((t - this.pointsCtr[i].t), 3) / (6*h) + 
+	           (this.pointsCtr[i].x - M_x[i] * h * h / 6) * (this.pointsCtr[i+1].t - t) / h + (this.pointsCtr[i+1].x - M_x[i+1] * h * h / 6) * (t - this.pointsCtr[i].t) / h
+	        y = M_y[i] * Math.pow((this.pointsCtr[i+1].t - t), 3) / (6*h) + M_y[i+1] * Math.pow((t - this.pointsCtr[i].t), 3) / (6*h) + 
+	            (this.pointsCtr[i].y - M_y[i] * h * h / 6) * (this.pointsCtr[i+1].t - t) / h + (this.pointsCtr[i+1].y - M_y[i+1] * h * h / 6) * (t - this.pointsCtr[i].t) / h
 			pt = new Point(x, y);
-			this.pointsSpline[j]=pt;
 			this.pointsSpline[j]=pt;
 			t += dt;
 			while ((t > this.pointsCtr[i+1].t) && (i < this.pointsCtr.length - 2))
 				i++;
 		}
-		
+
+
+		console.log(this.pointsSpline)
         this.verticesSpline = new Float32Array(this.pointsSpline.length * 2);
         for (j = 0; j < this.pointsSpline.length; j++) {
             this.verticesSpline[j * 2] = this.pointsSpline[j].x;
             this.verticesSpline[j * 2 + 1] = this.pointsSpline[j].y;
 		}
-		this.verticesSpline[this.verticesSpline.length - 2] = this.pointsCtr[this.pointsCtr.length - 1].x;
-        this.verticesSpline[this.verticesSpline.length - 1] = this.pointsCtr[this.pointsCtr.length - 1].y;
         
     }
 }
